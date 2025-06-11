@@ -1,0 +1,91 @@
+{
+	"Hostname": "mike-augnat1",
+	"Update": {},
+	"Environment": [
+		"GOOS=linux",
+		"GOARCH=arm64"
+	],
+	"Packages": [
+		"github.com/gokrazy/serial-busybox",
+		"github.com/gokrazy/breakglass",
+		"github.com/gokrazy/wifi",
+		"tailscale.com/cmd/tailscaled",
+		"tailscale.com/cmd/tailscale",
+		"github.com/gokrazy/mkfs",
+		"github.com/gokrazy/selfupdate",
+		"github.com/gokrazy/syslogd/cmd/gokr-syslogd",
+		"github.com/arribada/marlin-controller/mike/cmd/streamaudio"
+	],
+	"PackageConfig": {
+		"github.com/arribada/marlin-controller/mike/cmd/streamaudio": {
+			"GoBuildFlags": [
+				"-ldflags=-extldflags '-static'"
+			],
+			"CommandLineFlags": [
+				"-core=http://marlin-augnat3:8360",
+				"-host=:8362",
+				"-v=true",
+				"-debug=true"
+			],
+			"WaitForClock": true
+		},
+		"github.com/gokrazy/breakglass": {
+			"CommandLineFlags": [
+				"-authorized_keys=/etc/breakglass.authorized_keys"
+			],
+			"ExtraFilePaths": {
+				"/etc/breakglass.authorized_keys": "breakglass.authorized_keys"
+			}
+		},
+		"github.com/gokrazy/gokrazy/cmd/heartbeat": {
+			"CommandLineFlags": [
+				"--gus_server=http://100.108.73.80:8655"
+			]
+		},
+		"github.com/gokrazy/gokrazy/cmd/ntp": {
+			"CommandLineFlags": [
+				"0.pool.ntp.org",
+				"1.pool.ntp.org",
+				"2.pool.ntp.org",
+				"3.pool.ntp.org"
+			]
+		},
+		"github.com/gokrazy/gokrazy/cmd/randomd": {
+			"ExtraFileContents": {
+				"/etc/machine-id": "0b2138196811493f8e76c303dc292802\n"
+			}
+		},
+		"github.com/gokrazy/selfupdate": {
+			"CommandLineFlags": [
+				"--gus_server=http://100.108.73.80:8655",
+				"--check_frequency=20s"
+			]
+		},
+		"github.com/gokrazy/syslogd/cmd/gokr-syslogd": {
+			"CommandLineFlags": [
+				"-listen=:514",
+				"-goog_creds=/etc/marlin-sa-key.json"
+			],
+			"ExtraFilePaths": {
+				"/etc/marlin-sa-key.json": "marlin-sa-key.json"
+			}
+		},
+		"github.com/gokrazy/wifi": {
+			"DontStart": true,
+			"ExtraFilePaths": {
+				"/etc/wifi.json": "wifi.json"
+			}
+		},
+		"tailscale.com/cmd/tailscale": {
+			"CommandLineFlags": [
+				"up",
+				"--auth-key=file:/etc/ts.key"
+			],
+			"ExtraFilePaths": {
+				"/etc/ts.key": "ts.key"
+			}
+		}
+	},
+	"SerialConsole": "disabled",
+	"InternalCompatibilityFlags": {}
+}
