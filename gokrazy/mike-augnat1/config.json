@@ -22,7 +22,7 @@
 				"-ldflags=-extldflags '-static'"
 			],
 			"CommandLineFlags": [
-				"-core=http://marlin-augnat3:8360",
+				"-core=CORE_URL",
 				"-host=:8362",
 				"-v=true",
 				"-debug=true"
@@ -39,7 +39,7 @@
 		},
 		"github.com/gokrazy/gokrazy/cmd/heartbeat": {
 			"CommandLineFlags": [
-				"--gus_server=http://100.108.73.80:8655"
+				"--gus_server=GUS_SERVER"
 			]
 		},
 		"github.com/gokrazy/gokrazy/cmd/ntp": {
@@ -57,7 +57,7 @@
 		},
 		"github.com/gokrazy/selfupdate": {
 			"CommandLineFlags": [
-				"--gus_server=http://100.108.73.80:8655",
+				"--gus_server=GUS_SERVER",
 				"--check_frequency=20s"
 			]
 		},
