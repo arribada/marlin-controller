@@ -2,7 +2,7 @@ FROM goreleaser/goreleaser-cross:v1.23.3@sha256:cc69304a8817dde675f0afe551c38054
 
 RUN apt-get update
 # TODO: clean up. loopwav still needs portaudio
-RUN apt-get install -y git portaudio19-dev
+# RUN apt-get install -y git portaudio19-dev
 
 ARG GOPROXY=direct
 ENV GOPATH=/home/marlin

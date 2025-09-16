@@ -6,8 +6,8 @@ if [[ $# -eq 0 ]]; then
 	exit 1
 fi
 
-#GUS_ADDR=http://100.109.9.11:8655
-GUS_ADDR=http://100.108.73.80:8655
+GUS_ADDR=http://100.120.76.35:8655
+# GUS_ADDR=http://100.108.73.80:8655
 # CGO_ENABLED=1 GOOS=linux GOARCH=arm64 ${GOPATH}/bin/gok --parent_dir ./gokrazy/ -i $1 overwrite --gaf ./$1.gaf
 SBOM=$(unzip -p ./$1.gaf sbom.json | jq -r '.sbom_hash')
 echo $SBOM
