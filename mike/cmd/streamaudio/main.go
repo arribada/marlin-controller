@@ -22,8 +22,6 @@ import (
 	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
 	"github.com/yobert/alsa"
-
-	"github.com/zeozeozeo/gomplerate"
 )
 
 var (
@@ -42,8 +40,9 @@ func init() {
 
 const (
 	// alsa stuff
-	rawRate     = 44100
-	numChannels = 1
+	// rawRate     = 44100
+	rawRate     = 16000
+	numChannels = 6
 	bitDepth    = 16
 	rate        = 16000
 	format      = alsa.S16_LE
@@ -152,10 +151,13 @@ func device() (*alsa.Device, error) {
 
 func processAudio(ctx context.Context, output io.Writer, workC chan []byte) error {
 	inc := binary.Size(int16(0))
-	r, err := gomplerate.NewResampler(numChannels, rawRate, rate)
-	if err != nil {
-		return fmt.Errorf("while initializing resampler: %v", err)
-	}
+	// resampling not needed anymore, since we capture at 16KHz already
+	/*
+		r, err := gomplerate.NewResampler(numChannels, rawRate, rate)
+		if err != nil {
+			return fmt.Errorf("while initializing resampler: %v", err)
+		}
+	*/
 	for {
 		var work []byte
 		select {
@@ -172,7 +174,8 @@ func processAudio(ctx context.Context, output io.Writer, workC chan []byte) erro
 			data[i] = int16(binary.LittleEndian.Uint16(work[off:]))
 			off += inc
 		}
-		sampled := r.ResampleInt16(data)
+		// sampled := r.ResampleInt16(data)
+		sampled := data
 
 		// and encode ints again (arbitrarily with varint) as byte stream so we can send
 		// over the wire.

@@ -31,6 +31,7 @@ func init() {
 
 var (
 	allVessels = []string{
+		"marlin-augnat1",
 		"mike-augnat1",
 		"marlin-captain-al2",
 	}
