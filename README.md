@@ -26,3 +26,20 @@ The very last step of an update (calling ```./bin/ingest```), is done out of doc
 
 Get/build it from ```https://github.com/gokrazy/gus```, then run it on a machine within your tailscale network.
 See ```./bin/gus_launcher.sh``` as an example.
+
+# initial provisioning
+
+Same procedure as for the core, so follow https://github.com/arribada/marlin-core/blob/main/docs/init.txt
+
+# microphone flashing
+
+The respeaker microphone works out of the box on linux/mac, and does allow us to generate usable .wav files. However, it is configured for 6 channels by default, which seems to make transcribing on the core fail.
+
+So it needs to be flashed for 1 channel, as explained on https://wiki.seeedstudio.com/ReSpeaker_Mic_Array_v2.0/#update-firmware , so something like:
+
+```
+sudo pip3 install pyusb click pyaudio
+git clone https://github.com/respeaker/usb_4_mic_array.git
+cd usb_4_mic_array
+sudo python3 ./dfu.py --download 1_channel_firmware.bin
+```
