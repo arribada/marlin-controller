@@ -8,7 +8,6 @@
 	"Packages": [
 		"github.com/gokrazy/serial-busybox",
 		"github.com/gokrazy/breakglass",
-		"github.com/gokrazy/wifi",
 		"tailscale.com/cmd/tailscaled",
 		"tailscale.com/cmd/tailscale",
 		"github.com/gokrazy/mkfs",
@@ -26,8 +25,7 @@
 				"-host=:7142",
 				"-v=true",
 				"-debug=true"
-			],
-			"WaitForClock": true
+			]
 		},
 		"github.com/gokrazy/breakglass": {
 			"CommandLineFlags": [
