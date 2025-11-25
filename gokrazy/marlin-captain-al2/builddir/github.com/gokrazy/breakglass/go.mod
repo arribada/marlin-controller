@@ -1,4 +1,4 @@
-module gokrazy/build/marlin-augnat1
+module gokrazy/build/marlin-captain-al2
 
 go 1.24.1
 
