@@ -109,7 +109,11 @@ func handleButtonPress(event gpiod.LineEvent) {
 		}
 		return
 	}
-	go toggleStartStop()
+	go func() {
+		if err := toggleStartStop(); err != nil {
+			log.Printf("while toggling recording: %v", err)
+		}
+	}()
 }
 
 func newChip() (chip, error) {

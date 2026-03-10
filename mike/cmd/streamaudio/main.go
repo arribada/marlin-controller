@@ -25,17 +25,19 @@ import (
 )
 
 var (
-	flagHost    string
-	flagCoreURL string
-	flagVerbose bool
-	flagDebug   bool
+	flagHost     string
+	flagCoreURL  string
+	flagVerbose  bool
+	flagDebug    bool
+	flagMaxAudio int
 )
 
 func init() {
 	flag.StringVar(&flagHost, "host", ":7142", "host:port on which the audio is served")
 	flag.BoolVar(&flagVerbose, "v", false, "be verbose")
 	flag.BoolVar(&flagDebug, "debug", false, "enable debugging helpers. unrelated to logging.")
-	flag.StringVar(&flagCoreURL, "core", "http://core.local:7140", "where to forward the start/stop signals to, to stop the audio transcribing")
+	flag.StringVar(&flagCoreURL, "core", "", "where to forward the start/stop signals to, to stop the audio transcribing")
+	flag.IntVar(&flagMaxAudio, "max_audio", 600, "maximum duration for audio capture")
 }
 
 const (
@@ -54,30 +56,34 @@ const (
 
 	// server stuff
 	// default length of audio (in seconds) that we serve for each HTTP request.
-	bufferSize = 20
+	defaultBufferSize = 20
 	// arbitrary.
 	bufferChunk = 4096
 )
 
 var (
-	ledStateMu  sync.Mutex
+	stateMu sync.RWMutex
+	// even though we're actually always reading audio from the microphone,
+	// isRecording is what keeps us consistent about our state all throughout
+	// the program. it also informs our HTTP server whether we are supposed
+	// to serve the audio or not.
 	isRecording bool
 	isErroring  bool
+	// to automatically stop the audio recording after flagMaxAudio,
+	// if it hasn't already been done manually.
+	autostop *time.Timer
 )
 
-var coreURL string
+func checkFlags() {
+	if flagMaxAudio <= 0 {
+		log.Fatalf("max_audio cannot be negative")
+	}
+}
 
 func main() {
 	flag.Parse()
 
-	/*
-		var err error
-			coreURL, err = common.MResolve(flagCoreURL)
-			if err != nil {
-				log.Fatal(err)
-			}
-	*/
-	coreURL = flagCoreURL
+	checkFlags()
 
 	if err := setLED(false, false); err != nil {
 		log.Fatal(err)
@@ -93,10 +99,10 @@ func main() {
 		}
 	}()
 
-	stream()
+	stream(defaultBufferSize, fromMic)
 }
 
-func stream() {
+func stream(bufferSize int, sourceFunc func(output io.Writer) error) {
 	pr, pw := io.Pipe()
 	bs := time.Duration(bufferSize) * time.Second
 	as := &audioStreamer{
@@ -106,7 +112,7 @@ func stream() {
 		nextPart:    time.Now().Add(bs),
 	}
 	go func() {
-		if err := fromMic(pw); err != nil {
+		if err := sourceFunc(pw); err != nil {
 			log.Fatal(err)
 		}
 	}()
@@ -290,6 +296,17 @@ type audioStreamer struct {
 }
 
 func (as *audioStreamer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	stateMu.RLock()
+	isRec := isRecording
+	stateMu.RUnlock()
+	// tell the core we're not recording, so it's not supposed to fetch from us
+	if !isRec {
+		retryDuration := -1
+		w.Header().Add("Retry-After", fmt.Sprintf("%d", retryDuration))
+		w.WriteHeader(429)
+		return
+	}
+
 	as.muPart.RLock()
 	if as.currentPart == nil {
 		retryDuration := time.Until(as.nextPart) / time.Second
@@ -442,8 +459,13 @@ func handleCLISignals() {
 	}
 }
 
+var noCoreURLErr = errors.New("core URL not provided")
+
 func handleSignal(start bool) error {
-	theurl := coreURL
+	if flagCoreURL == "" {
+		return noCoreURLErr
+	}
+	theurl := flagCoreURL
 	if start {
 		if flagVerbose {
 			log.Printf("Sending start signal")
@@ -467,18 +489,80 @@ func handleSignal(start bool) error {
 	return nil
 }
 
-func toggleStartStop() {
-	ledStateMu.Lock()
-	defer ledStateMu.Unlock()
+func toggleStartStop() error {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	// TODO: maybe merge startRecording and stopRecording together again if it makes sense.
+	if isRecording {
+		return stopRecording()
+	}
+	return startRecording()
+}
 
-	if err := handleSignal(!isRecording); err != nil {
-		log.Println(err)
-		return
+func stopRecordingLocked() error {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	return stopRecording()
+}
+
+func stopRecording() error {
+	// in case we're in a manual stop, cancel the programmed autostop
+	// that was supposed to happen eventually.
+	if autostop != nil {
+		autostop.Stop()
+		autostop = nil
 	}
+
+	if !isRecording {
+		// already stopped, all good
+		return nil
+	}
+
 	isRecording = !isRecording
-	if err := setLED(isRecording, isErroring); err != nil {
-		log.Println(err)
+
+	if err := setLED(false, isErroring); err != nil {
+		return err
 	}
+
+	// TODO: keep on retrying if we fail. But do it async, or make sure we're not blocking the Mutex for long.
+	// or how about we teach client with our reply to stop fetching? retry-after with -1 value for ex?
+	// done on this side, but need to fix core code now.
+	if err := handleSignal(isRecording); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func startRecordingLocked() error {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	return startRecording()
+}
+
+func startRecording() error {
+	if isRecording {
+		// already started, all good
+		return nil
+	}
+
+	isRecording = !isRecording
+	autostop = time.AfterFunc(time.Duration(flagMaxAudio)*time.Second, func() {
+		if err := stopRecordingLocked(); err != nil {
+			log.Printf("while running automatic stop recording: %v", err)
+		}
+	})
+
+	if err := setLED(true, isErroring); err != nil {
+		return err
+	}
+
+	// TODO: keep on retrying if we fail. But do it async, or make sure we're not blocking the Mutex for long.
+	if err := handleSignal(isRecording); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type chip interface {
