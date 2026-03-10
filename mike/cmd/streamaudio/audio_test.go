@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"runtime"
 	"testing"
 )
 
@@ -21,6 +22,9 @@ scp record.test rpi5:.
 scp controller:data/audio.dat .
 */
 func TestRecordAudio(t *testing.T) {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "arm64" {
+		t.Skipf("skipping because not on rpi")
+	}
 	rec, err := device()
 	if err != nil {
 		t.Fatal(err)
