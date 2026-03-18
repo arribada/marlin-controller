@@ -21,9 +21,8 @@ scp record.test rpi5:.
 scp controller:data/audio.dat .
 */
 func TestRecordAudio(t *testing.T) {
-	entries, err := os.ReadDir("/dev/snd")
-	if err != nil || len(entries) == 0 {
-		t.Skip("No ALSA audio devices available")
+	if os.Getenv("CI") != "" {
+		t.Skip("Skipping in CI: requires ALSA audio hardware")
 	}
 
 	rec, err := device()
@@ -62,9 +61,8 @@ func TestRecordAudio(t *testing.T) {
 }
 
 func TestProcessAudio(t *testing.T) {
-	entries, err := os.ReadDir("/dev/snd")
-	if err != nil || len(entries) == 0 {
-		t.Skip("No ALSA audio devices available")
+	if os.Getenv("CI") != "" {
+		t.Skip("Skipping in CI: requires ALSA audio hardware")
 	}
 
 	data, err := os.ReadFile(rawAudioFile)
