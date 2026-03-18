@@ -15,7 +15,7 @@ import (
 
 func TestAutoStop(t *testing.T) {
 	flagMaxAudio = 5
-	if err := startRecording(); err != nil {
+	if err := startRecordingLocked(); err != nil {
 		if !errors.Is(err, noCoreURLErr) {
 			t.Fatal(err)
 		}
@@ -32,7 +32,7 @@ func TestAutoStop(t *testing.T) {
 
 func TestManualStop(t *testing.T) {
 	flagMaxAudio = 5
-	if err := startRecording(); err != nil {
+	if err := startRecordingLocked(); err != nil {
 		if !errors.Is(err, noCoreURLErr) {
 			t.Fatal(err)
 		}
@@ -42,7 +42,7 @@ func TestManualStop(t *testing.T) {
 	}
 
 	time.Sleep(time.Second)
-	if err := stopRecording(); err != nil {
+	if err := stopRecordingLocked(); err != nil {
 		if !errors.Is(err, noCoreURLErr) {
 			t.Fatal(err)
 		}
@@ -52,7 +52,7 @@ func TestManualStop(t *testing.T) {
 	}
 
 	time.Sleep(time.Second)
-	if err := startRecording(); err != nil {
+	if err := startRecordingLocked(); err != nil {
 		if !errors.Is(err, noCoreURLErr) {
 			t.Fatal(err)
 		}
@@ -82,7 +82,7 @@ func TestStopAudio(t *testing.T) {
 	}()
 	time.Sleep(time.Second)
 
-	if err := startRecording(); err != nil {
+	if err := startRecordingLocked(); err != nil {
 		if !errors.Is(err, noCoreURLErr) {
 			t.Fatal(err)
 		}
@@ -103,7 +103,7 @@ func TestStopAudio(t *testing.T) {
 		t.Fatalf("not a 200: %d", resp.StatusCode)
 	}
 
-	if err := stopRecording(); err != nil {
+	if err := stopRecordingLocked(); err != nil {
 		if !errors.Is(err, noCoreURLErr) {
 			t.Fatal(err)
 		}
