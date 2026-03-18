@@ -1,0 +1,36 @@
+name: Go CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+# Coverage reporting is intentionally omitted for now.
+# It can be added once test coverage improves.
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev zstd
+
+      - name: Build, vet, and test all modules
+        run: |
+          for mod in mike syslogd; do
+            echo "=== $mod ==="
+            cd "$mod"
+            go build ./...
+            go vet ./...
+            go test ./...
+            cd ..
+          done
