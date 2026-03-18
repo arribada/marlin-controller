@@ -8,6 +8,8 @@ import (
 	"context"
 	"os"
 	"testing"
+
+	"github.com/yobert/alsa"
 )
 
 const (
@@ -21,6 +23,12 @@ scp record.test rpi5:.
 scp controller:data/audio.dat .
 */
 func TestRecordAudio(t *testing.T) {
+	cards, err := alsa.OpenCards()
+	if err != nil || len(cards) == 0 {
+		t.Skip("No ALSA audio devices available")
+	}
+	alsa.CloseCards(cards)
+
 	rec, err := device()
 	if err != nil {
 		t.Fatal(err)
@@ -57,6 +65,12 @@ func TestRecordAudio(t *testing.T) {
 }
 
 func TestProcessAudio(t *testing.T) {
+	cards, err := alsa.OpenCards()
+	if err != nil || len(cards) == 0 {
+		t.Skip("No ALSA audio devices available")
+	}
+	alsa.CloseCards(cards)
+
 	data, err := os.ReadFile(rawAudioFile)
 	if err != nil {
 		t.Fatal(err)
