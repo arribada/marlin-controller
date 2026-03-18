@@ -247,39 +247,6 @@ func recordAudio(ctx context.Context, rec *alsa.Device, workC chan []byte) {
 	}
 }
 
-// TODO: on mac, record with sox instead
-func fromMic(output io.Writer) error {
-	rec, err := device()
-	if err != nil {
-		return err
-	}
-
-	if err = rec.Open(); err != nil {
-		return err
-	}
-	defer rec.Close()
-
-	if err := prepare(rec); err != nil {
-		return err
-	}
-
-	// chan size does not really matter here, as long as it's buffered/async.
-	workC := make(chan []byte, 100)
-
-	// Asynchronous reception of the audio capture, and then piping it to
-	// our audio streamer. We have it async here, so that the main loop on the
-	// audio capture can spend most of its time on the audio capture itself,
-	// without too much interuption.
-	go func() {
-		if err := processAudio(context.TODO(), output, workC); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	recordAudio(context.TODO(), rec, workC)
-	return errors.New("recording unexpectedly stopped")
-}
-
 type audioStreamer struct {
 	muPart sync.RWMutex
 	// data served
@@ -433,40 +400,23 @@ func handleCLISignals() {
 	sc := bufio.NewScanner(os.Stdin)
 	for sc.Scan() {
 		l := sc.Text()
-		if l != "start" && l != "stop" {
+		if l != "toggle" {
 			continue
 		}
-		if l == "start" {
-			if err := handleSignal(true); err != nil {
-				log.Println(err)
-				continue
-			}
-			if err := setLED(true, false); err != nil {
-				log.Println(err)
-				continue
-			}
-			continue
-		}
-
-		if err := handleSignal(false); err != nil {
+		if err := toggleStartStop(); err != nil {
 			log.Println(err)
-			continue
-		}
-		if err := setLED(false, false); err != nil {
-			log.Println(err)
-			continue
 		}
 	}
 }
 
 var noCoreURLErr = errors.New("core URL not provided")
 
-func handleSignal(start bool) error {
+func handleSignal(recording bool) error {
 	if flagCoreURL == "" {
 		return noCoreURLErr
 	}
 	theurl := flagCoreURL
-	if start {
+	if recording {
 		if flagVerbose {
 			log.Printf("Sending start signal")
 		}
@@ -505,6 +455,7 @@ func stopRecordingLocked() error {
 	return stopRecording()
 }
 
+// needs to be locked by caller
 func stopRecording() error {
 	// in case we're in a manual stop, cancel the programmed autostop
 	// that was supposed to happen eventually.
@@ -524,12 +475,7 @@ func stopRecording() error {
 		return err
 	}
 
-	// TODO: keep on retrying if we fail. But do it async, or make sure we're not blocking the Mutex for long.
-	// or how about we teach client with our reply to stop fetching? retry-after with -1 value for ex?
-	// done on this side, but need to fix core code now.
-	if err := handleSignal(isRecording); err != nil {
-		return err
-	}
+	go handleSignalRetry(isRecording)
 
 	return nil
 }
@@ -540,6 +486,7 @@ func startRecordingLocked() error {
 	return startRecording()
 }
 
+// needs to be locked by caller
 func startRecording() error {
 	if isRecording {
 		// already started, all good
@@ -557,12 +504,49 @@ func startRecording() error {
 		return err
 	}
 
-	// TODO: keep on retrying if we fail. But do it async, or make sure we're not blocking the Mutex for long.
-	if err := handleSignal(isRecording); err != nil {
-		return err
-	}
+	go handleSignalRetry(isRecording)
 
 	return nil
+}
+
+// routinely retry signalling recording status to core, with exponential backoff.
+// this func NEEDS to be in a goroutine, as it locks the mutex.
+func handleSignalRetry(recording bool) {
+	pause := time.Second
+	maxPause := 5 * time.Minute
+	start := time.Now()
+	maxRetry := time.Duration(flagMaxAudio) * time.Second * 9 / 10
+	for {
+		stateMu.RLock()
+		rec := isRecording
+		stateMu.RUnlock()
+		if rec != recording {
+			// status has changed in the meantime, so we stop trying
+			return
+		}
+		if recording {
+			if time.Since(start) > maxRetry {
+				// we're about to stop recording anyway, so no point anymore in
+				// telling the core to start fetching audio
+				return
+			}
+		}
+		err := handleSignal(recording)
+		if err == nil {
+			return
+		}
+		if err == noCoreURLErr {
+			return
+		}
+		if flagVerbose {
+			log.Printf("failed to signal recording status (%v) to core: %v", recording, err)
+		}
+		time.Sleep(pause)
+		pause *= 2
+		if pause > maxPause {
+			pause = maxPause
+		}
+	}
 }
 
 type chip interface {
