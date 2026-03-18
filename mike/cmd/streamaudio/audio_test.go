@@ -1,3 +1,5 @@
+//go:build !ci
+
 // Copyright (c) The Arribada initiative.
 // Licensed under the GPLv3 License.
 
@@ -21,10 +23,6 @@ scp record.test rpi5:.
 scp controller:data/audio.dat .
 */
 func TestRecordAudio(t *testing.T) {
-	if os.Getenv("CI") != "" {
-		t.Skip("Skipping in CI: requires ALSA audio hardware")
-	}
-
 	rec, err := device()
 	if err != nil {
 		t.Fatal(err)
@@ -61,10 +59,6 @@ func TestRecordAudio(t *testing.T) {
 }
 
 func TestProcessAudio(t *testing.T) {
-	if os.Getenv("CI") != "" {
-		t.Skip("Skipping in CI: requires ALSA audio hardware")
-	}
-
 	data, err := os.ReadFile(rawAudioFile)
 	if err != nil {
 		t.Fatal(err)
