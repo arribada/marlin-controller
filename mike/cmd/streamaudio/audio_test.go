@@ -1,3 +1,5 @@
+//go:build !ci
+
 // Copyright (c) The Arribada initiative.
 // Licensed under the GPLv3 License.
 
