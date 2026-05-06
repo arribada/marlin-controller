@@ -32,10 +32,10 @@ var (
 )
 
 func init() {
-	flag.StringVar(&flagHost, "host", "localhost:8080", "host:port on which the audio is served")
+	flag.StringVar(&flagHost, "host", ":7142", "host:port on which the audio is served")
 	flag.BoolVar(&flagVerbose, "v", false, "be verbose")
 	flag.BoolVar(&flagDebug, "debug", false, "enable debugging helpers. unrelated to logging.")
-	flag.StringVar(&flagCoreURL, "core", "http://localhost:8080", "where to forward the start/stop signals to, to stop the audio transcribing")
+	flag.StringVar(&flagCoreURL, "core", "http://core.local:7140", "where to forward the start/stop signals to, to stop the audio transcribing")
 }
 
 const (
