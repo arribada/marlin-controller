@@ -72,6 +72,9 @@ var (
 	// to automatically stop the audio recording after flagMaxAudio,
 	// if it hasn't already been done manually.
 	autostop *time.Timer
+	// to automatically stop the audio recording if the core hasn't been
+	// fetching from us in a while (arbitrarily, a minute).
+	lastReq time.Time
 )
 
 func checkFlags() {
@@ -119,6 +122,10 @@ func stream(bufferSize int, sourceFunc func(output io.Writer) error) {
 	time.Sleep(100 * time.Millisecond)
 	go func() {
 		as.populate()
+	}()
+
+	go func() {
+		monitorServing()
 	}()
 
 	if flagDebug {
@@ -266,6 +273,9 @@ func (as *audioStreamer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	stateMu.RLock()
 	isRec := isRecording
 	stateMu.RUnlock()
+	stateMu.Lock()
+	lastReq = time.Now()
+	stateMu.Unlock()
 	// tell the core we're not recording, so it's not supposed to fetch from us
 	if !isRec {
 		retryDuration := -1
@@ -437,6 +447,28 @@ func handleSignal(recording bool) error {
 	}
 	res.Body.Close()
 	return nil
+}
+
+func monitorServing() {
+	for {
+		time.Sleep(time.Minute)
+		stateMu.RLock()
+		isRec := isRecording
+		last := lastReq
+		stateMu.RUnlock()
+		if !isRec {
+			continue
+		}
+		t := time.Since(last)
+		// Should be at most 20s, but give it some leeway
+		if t < time.Minute {
+			continue
+		}
+		log.Printf("Stopping streaming as core hasn't fetched from us in a while")
+		if err := stopRecordingLocked(); err != nil {
+			log.Printf("while trying to stop streaming: %v", err)
+		}
+	}
 }
 
 func toggleStartStop() error {
