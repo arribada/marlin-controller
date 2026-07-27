@@ -287,6 +287,7 @@ func (as *audioStreamer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	as.muPart.RLock()
 	if as.currentPart == nil {
 		retryDuration := time.Until(as.nextPart) / time.Second
+
 		w.Header().Add("Retry-After", fmt.Sprintf("%d", retryDuration))
 		w.WriteHeader(429)
 		as.muPart.RUnlock()
@@ -501,13 +502,20 @@ func stopRecording() error {
 		return nil
 	}
 
-	isRecording = !isRecording
-
 	if err := setLED(false, isErroring); err != nil {
 		return err
 	}
 
-	go handleSignalRetry(isRecording)
+	go func() {
+		// we actually delay stopping for real by 20s, so the client has enough time to fetch the final chunk.
+		// in itself it's ok, but it's kinda gross that the LED has already switched to not recording.
+		// otoh, we don't want to delay switching otherwise the user might think something's not working.
+		time.Sleep(defaultBufferSize * time.Second)
+		stateMu.Lock()
+		isRecording = false
+		stateMu.Unlock()
+		handleSignalRetry(isRecording)
+	}()
 
 	return nil
 }
@@ -525,7 +533,7 @@ func startRecording() error {
 		return nil
 	}
 
-	isRecording = !isRecording
+	isRecording = true
 	autostop = time.AfterFunc(time.Duration(flagMaxAudio)*time.Second, func() {
 		if err := stopRecordingLocked(); err != nil {
 			log.Printf("while running automatic stop recording: %v", err)
