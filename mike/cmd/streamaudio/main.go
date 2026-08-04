@@ -36,7 +36,7 @@ func init() {
 	flag.StringVar(&flagHost, "host", ":7142", "host:port on which the audio is served")
 	flag.BoolVar(&flagVerbose, "v", false, "be verbose")
 	flag.BoolVar(&flagDebug, "debug", false, "enable debugging helpers. unrelated to logging.")
-	flag.StringVar(&flagCoreURL, "core", "", "where to forward the start/stop signals to, to stop the audio transcribing")
+	flag.StringVar(&flagCoreURL, "core", "http://core.local:7140", "where to forward the start/stop signals to, to stop the audio transcribing")
 	flag.IntVar(&flagMaxAudio, "max_audio", 600, "maximum duration for audio capture")
 }
 
@@ -287,10 +287,11 @@ func (as *audioStreamer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	as.muPart.RLock()
 	if as.currentPart == nil {
 		retryDuration := time.Until(as.nextPart) / time.Second
-
+		retryDuration++
 		w.Header().Add("Retry-After", fmt.Sprintf("%d", retryDuration))
 		w.WriteHeader(429)
 		as.muPart.RUnlock()
+		log.Printf("replying with Retry-After: %d seconds", retryDuration)
 		return
 	}
 	// TODO: any headers, chunk encoding?
