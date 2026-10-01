@@ -55,9 +55,6 @@ const (
 	recDuration     = time.Second
 
 	// server stuff
-	// default length of audio (in seconds) that we serve for each HTTP request.
-	defaultBufferSize = 20
-	// arbitrary.
 	bufferChunk = 4096
 )
 
@@ -75,6 +72,9 @@ var (
 	// to automatically stop the audio recording if the core hasn't been
 	// fetching from us in a while (arbitrarily, a minute).
 	lastReq time.Time
+	// default length of audio (in seconds) that we serve for each HTTP request.
+	// arbitrary.
+	defaultBufferSize = 20
 )
 
 func checkFlags() {
@@ -511,7 +511,7 @@ func stopRecording() error {
 		// we actually delay stopping for real by 20s, so the client has enough time to fetch the final chunk.
 		// in itself it's ok, but it's kinda gross that the LED has already switched to not recording.
 		// otoh, we don't want to delay switching otherwise the user might think something's not working.
-		time.Sleep(defaultBufferSize * time.Second)
+		time.Sleep(time.Duration(defaultBufferSize) * time.Second)
 		stateMu.Lock()
 		isRecording = false
 		stateMu.Unlock()

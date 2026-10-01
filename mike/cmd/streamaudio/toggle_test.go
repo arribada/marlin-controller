@@ -15,6 +15,7 @@ import (
 
 func TestAutoStop(t *testing.T) {
 	flagMaxAudio = 5
+	defaultBufferSize = 2
 	if err := startRecordingLocked(); err != nil {
 		if !errors.Is(err, noCoreURLErr) {
 			t.Fatal(err)
@@ -24,7 +25,8 @@ func TestAutoStop(t *testing.T) {
 		t.Fatalf("not recording")
 	}
 	time.Sleep(time.Duration(flagMaxAudio) * time.Second)
-	time.Sleep(time.Second)
+	// because the system waits for an extra buffer size before actually stopping
+	time.Sleep(time.Duration(defaultBufferSize) * time.Second)
 	if isRecording {
 		t.Fatalf("still recording")
 	}
@@ -32,6 +34,7 @@ func TestAutoStop(t *testing.T) {
 
 func TestManualStop(t *testing.T) {
 	flagMaxAudio = 5
+	defaultBufferSize = 2
 	if err := startRecordingLocked(); err != nil {
 		if !errors.Is(err, noCoreURLErr) {
 			t.Fatal(err)
@@ -47,6 +50,8 @@ func TestManualStop(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// because the system waits for an extra buffer size before actually stopping
+	time.Sleep(time.Duration(defaultBufferSize+1) * time.Second)
 	if isRecording {
 		t.Fatalf("still recording")
 	}
@@ -70,15 +75,19 @@ func TestManualStop(t *testing.T) {
 
 	// now we wait again, for the second auto-stop (which should not have been cancelled) to have been triggered.
 	time.Sleep(2 * time.Second)
+	// because the system waits for an extra buffer size before actually stopping
+	time.Sleep(time.Duration(defaultBufferSize+1) * time.Second)
 	if isRecording {
 		t.Fatalf("still recording")
 	}
 }
 
 func TestStopAudio(t *testing.T) {
-	bs := 3
+	defaultBufferSize = 3
+	flagHost = ":7142"
+	URL := "http://localhost" + flagHost
 	go func() {
-		stream(bs, fromMicMock)
+		stream(defaultBufferSize, fromMicMock)
 	}()
 	time.Sleep(time.Second)
 
@@ -92,9 +101,9 @@ func TestStopAudio(t *testing.T) {
 	}
 
 	// wait for first audio buffer to get filled
-	time.Sleep(time.Duration(bs) * time.Second)
+	time.Sleep(time.Duration(defaultBufferSize) * time.Second)
 
-	resp, err := http.Get("http://localhost:8080")
+	resp, err := http.Get(URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,12 +117,13 @@ func TestStopAudio(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	time.Sleep(time.Duration(defaultBufferSize) * time.Second)
 	if isRecording {
 		t.Fatalf("still recording")
 	}
 
 	// check that when we are stopped, our streamer does not serve anything other than 429 with -1 as duration
-	resp, err = http.Get("http://localhost:8080")
+	resp, err = http.Get(URL)
 	if err != nil {
 		t.Fatal(err)
 	}
