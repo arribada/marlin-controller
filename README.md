@@ -1,5 +1,5 @@
 # marlin-controller
-Code for the controller box of the marlin project
+Code for the controller box of the [MARLIN project](https://resilience.esa.int/archives/projects/marlin)
 
 # requirements
 
